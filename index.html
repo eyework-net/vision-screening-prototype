@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Vision Screening Prototype v2</title>
+  <style>
+    :root {
+      --bg: #f4f5f7;
+      --panel: #ffffff;
+      --line: #d8dde6;
+      --text: #1d2433;
+      --muted: #5b6578;
+      --accent: #2563eb;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Hiragino Sans", "Yu Gothic UI", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+    .wrap {
+      max-width: 1240px;
+      margin: 0 auto;
+      padding: 24px;
+      display: grid;
+      grid-template-columns: 380px 1fr;
+      gap: 20px;
+    }
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 18px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.05);
+    }
+    h1 { font-size: 1.45rem; margin: 0 0 8px; }
+    h2 { font-size: 1rem; margin: 0 0 12px; }
+    p, li { line-height: 1.6; color: var(--muted); }
+    .control-group {
+      margin-bottom: 16px;
+      padding-bottom: 14px;
+      border-bottom: 1px solid #edf1f5;
+    }
+    .control-group:last-child { border-bottom: none; }
+    label {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-weight: 600;
+      margin-bottom: 8px;
+      gap: 12px;
+    }
+    input[type="range"] {
+      width: 100%;
+      accent-color: var(--accent);
+    }
+    select {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 10px 12px;
+      background: #fff;
+      color: var(--text);
+      font-size: 0.95rem;
+    }
+    .btn-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    button {
+      border: 1px solid var(--line);
+      background: white;
+      color: var(--text);
+      border-radius: 12px;
+      padding: 10px 14px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    button.primary {
+      background: var(--accent);
+      color: white;
+      border-color: var(--accent);
+    }
+    button:hover { filter: brightness(0.98); }
+    .stage {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .canvas-box {
+      background: #e9edf2;
+      border-radius: 20px;
+      padding: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 640px;
+      border: 1px solid var(--line);
+    }
+    canvas {
+      width: min(88vw, 720px);
+      height: min(88vw, 720px);
+      max-width: 720px;
+      max-height: 720px;
+      border-radius: 16px;
+      background: #bdbdbd;
+      border: 1px solid #b8c1cc;
+      image-rendering: pixelated;
+    }
+    .status {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 10px;
+    }
+    .metric {
+      background: white;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 12px;
+    }
+    .metric .k {
+      font-size: 0.8rem;
+      color: var(--muted);
+      margin-bottom: 4px;
+    }
+    .metric .v {
+      font-size: 1.1rem;
+      font-weight: 700;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.92rem;
+      background: white;
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    th, td {
+      padding: 10px 8px;
+      border-bottom: 1px solid #edf1f5;
+      text-align: center;
+    }
+    th {
+      background: #f9fafb;
+      color: var(--muted);
+      font-weight: 700;
+    }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    .note {
+      font-size: 0.9rem;
+      background: #f8fafc;
+      border: 1px solid #e5ebf2;
+      border-radius: 12px;
+      padding: 12px;
+    }
+    @media (max-width: 920px) {
+      .wrap { grid-template-columns: 1fr; }
+      .canvas-box { min-height: auto; }
+      .status { grid-template-columns: repeat(2, 1fr); }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <section class="panel">
+      <h1>視覚スクリーニング試作版 v2</h1>
+      <p>背景ぼかしを廃し、低周波ターゲット + 矩形波マスキング刺激に整理したプロトタイプです。ノイズなし条件も含め、背景コントラストとマスキング条件を軸に挙動を確認できます。</p>
+
+      <div class="control-group">
+        <h2>刺激条件</h2>
+        <label>背景コントラスト <span id="contrastVal" class="mono">18%</span></label>
+        <input id="contrast" type="range" min="0" max="60" value="18" step="1" />
+
+        <label>マスキング条件</label>
+        <select id="maskMode">
+          <option value="none">ノイズなし</option>
+          <option value="coarse">矩形波ノイズ：粗</option>
+          <option value="medium" selected>矩形波ノイズ：中</option>
+          <option value="fine">矩形波ノイズ：細</option>
+        </select>
+
+        <label>マスク強度 <span id="noiseVal" class="mono">42%</span></label>
+        <input id="noise" type="range" min="0" max="100" value="42" step="1" />
+
+        <label>刺激サイズ <span id="sizeVal" class="mono">86%</span></label>
+        <input id="digitScale" type="range" min="50" max="95" value="86" step="1" />
+      </div>
+
+      <div class="control-group">
+        <h2>試行操作</h2>
+        <div class="btn-row">
+          <button id="newTrial" class="primary">新しい試行</button>
+          <button id="toggleAnswer">正解を表示</button>
+          <button id="exportCsv">CSV出力</button>
+          <button id="resetLog">ログを消去</button>
+        </div>
+      </div>
+
+      <div class="control-group">
+        <h2>回答入力</h2>
+        <p class="note">現時点では4択の簡易版です。研究版では 2AFC / 4AFC、staircase法、catch trial を別途実装する前提です。</p>
+        <div class="btn-row" id="responseButtons"></div>
+      </div>
+
+      <div class="control-group">
+        <h2>今回の確認点</h2>
+        <ul>
+          <li>背景コントラストを連続値で変えた時に見え方がどう変わるか</li>
+          <li>ノイズなし条件と矩形波マスク条件で刺激の印象がどう変わるか</li>
+          <li>条件ログが研究試作として十分な最低限を満たすか</li>
+          <li>将来の閾値探索に拡張しやすい構造になっているか</li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="stage">
+      <div class="canvas-box panel">
+        <canvas id="stimulus" width="720" height="720" aria-label="視覚刺激"></canvas>
+      </div>
+
+      <div class="status">
+        <div class="metric"><div class="k">試行番号</div><div class="v" id="trialNo">1</div></div>
+        <div class="metric"><div class="k">正解数字</div><div class="v" id="correctDigit">?</div></div>
+        <div class="metric"><div class="k">回答数</div><div class="v" id="nResponses">0</div></div>
+        <div class="metric"><div class="k">正答率</div><div class="v" id="accuracy">0%</div></div>
+        <div class="metric"><div class="k">マスク条件</div><div class="v" id="maskReadout">中</div></div>
+      </div>
+
+      <div class="panel">
+        <h2>試行ログ</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Trial</th>
+              <th>Target</th>
+              <th>Response</th>
+              <th>Correct</th>
+              <th>Contrast</th>
+              <th>Mask</th>
+              <th>Mask Intensity</th>
+              <th>Size</th>
+            </tr>
+          </thead>
+          <tbody id="logBody"></tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('stimulus');
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+
+    const offMask = document.createElement('canvas');
+    offMask.width = canvas.width;
+    offMask.height = canvas.height;
+    const maskCtx = offMask.getContext('2d');
+
+    const digits = ['2', '3', '5', '8'];
+    const responseButtons = document.getElementById('responseButtons');
+    const logBody = document.getElementById('logBody');
+
+    const state = {
+      trial: 1,
+      digit: digits[Math.floor(Math.random() * digits.length)],
+      showAnswer: false,
+      log: []
+    };
+
+    const controls = {
+      contrast: document.getElementById('contrast'),
+      maskMode: document.getElementById('maskMode'),
+      noise: document.getElementById('noise'),
+      digitScale: document.getElementById('digitScale')
+    };
+
+    const maskLabels = {
+      none: 'なし',
+      coarse: '粗',
+      medium: '中',
+      fine: '細'
+    };
+
+    function updateReadouts() {
+      document.getElementById('contrastVal').textContent = `${controls.contrast.value}%`;
+      document.getElementById('noiseVal').textContent = `${controls.noise.value}%`;
+      document.getElementById('sizeVal').textContent = `${controls.digitScale.value}%`;
+      document.getElementById('trialNo').textContent = state.trial;
+      document.getElementById('correctDigit').textContent = state.showAnswer ? state.digit : '?';
+      document.getElementById('nResponses').textContent = state.log.length;
+      document.getElementById('maskReadout').textContent = maskLabels[controls.maskMode.value];
+      const nCorrect = state.log.filter(x => x.correct).length;
+      const acc = state.log.length ? Math.round(100 * nCorrect / state.log.length) : 0;
+      document.getElementById('accuracy').textContent = `${acc}%`;
+    }
+
+    function getMaskCellSize(mode) {
+      if (mode === 'coarse') return 36;
+      if (mode === 'medium') return 18;
+      if (mode === 'fine') return 9;
+      return null;
+    }
+
+    function drawDigitMask(scale) {
+      maskCtx.clearRect(0, 0, offMask.width, offMask.height);
+      maskCtx.fillStyle = 'black';
+      maskCtx.fillRect(0, 0, offMask.width, offMask.height);
+      maskCtx.fillStyle = 'white';
+      maskCtx.textAlign = 'center';
+      maskCtx.textBaseline = 'middle';
+      maskCtx.font = `900 ${Math.floor(canvas.width * scale)}px Arial, sans-serif`;
+      maskCtx.fillText(state.digit, canvas.width / 2, canvas.height / 2 + canvas.width * 0.04);
+      return maskCtx.getImageData(0, 0, canvas.width, canvas.height).data;
+    }
+
+    function drawStimulus() {
+      const contrast = Number(controls.contrast.value) / 100;
+      const noiseStrength = Number(controls.noise.value) / 100;
+      const scale = Number(controls.digitScale.value) / 100;
+      const mode = controls.maskMode.value;
+      const cellSize = getMaskCellSize(mode);
+      const maskData = drawDigitMask(scale);
+      const img = ctx.createImageData(canvas.width, canvas.height);
+      const data = img.data;
+      const base = 128;
+      const amp = 127 * contrast;
+
+      for (let y = 0; y < canvas.height; y++) {
+        for (let x = 0; x < canvas.width; x++) {
+          const i = (y * canvas.width + x) * 4;
+          const digitMask = maskData[i] / 255;
+          let v = base + ((digitMask * 2 - 1) * amp);
+
+          if (cellSize !== null && noiseStrength > 0) {
+            const checker = ((Math.floor(x / cellSize) + Math.floor(y / cellSize)) % 2 === 0) ? 1 : -1;
+            const noiseAmp = 127 * noiseStrength;
+            v += checker * noiseAmp;
+          }
+
+          if (state.showAnswer && digitMask > 0.55) {
+            v += 20;
+          }
+
+          v = Math.max(0, Math.min(255, Math.round(v)));
+          data[i] = v;
+          data[i + 1] = v;
+          data[i + 2] = v;
+          data[i + 3] = 255;
+        }
+      }
+      ctx.putImageData(img, 0, 0);
+    }
+
+    function chooseNewDigit() {
+      state.digit = digits[Math.floor(Math.random() * digits.length)];
+    }
+
+    function addResponse(response) {
+      const entry = {
+        trial: state.trial,
+        target: state.digit,
+        response,
+        correct: response === state.digit,
+        contrast: `${controls.contrast.value}%`,
+        mask: maskLabels[controls.maskMode.value],
+        maskIntensity: `${controls.noise.value}%`,
+        size: `${controls.digitScale.value}%`
+      };
+      state.log.unshift(entry);
+      renderLog();
+      state.trial += 1;
+      chooseNewDigit();
+      state.showAnswer = false;
+      updateReadouts();
+      drawStimulus();
+    }
+
+    function renderLog() {
+      logBody.innerHTML = '';
+      for (const row of state.log.slice(0, 12)) {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${row.trial}</td>
+          <td>${row.target}</td>
+          <td>${row.response}</td>
+          <td>${row.correct ? '○' : '×'}</td>
+          <td>${row.contrast}</td>
+          <td>${row.mask}</td>
+          <td>${row.maskIntensity}</td>
+          <td>${row.size}</td>
+        `;
+        logBody.appendChild(tr);
+      }
+    }
+
+    function exportCsv() {
+      const header = ['trial', 'target', 'response', 'correct', 'contrast', 'mask', 'mask_intensity', 'size'];
+      const rows = state.log.map(r => [r.trial, r.target, r.response, r.correct, r.contrast, r.mask, r.maskIntensity, r.size]);
+      const csv = [header, ...rows].map(cols => cols.join(',')).join('\n');
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'vision_screening_log_v2.csv';
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    digits.forEach(d => {
+      const btn = document.createElement('button');
+      btn.textContent = d;
+      btn.addEventListener('click', () => addResponse(d));
+      responseButtons.appendChild(btn);
+    });
+
+    Object.values(controls).forEach(el => el.addEventListener('input', () => {
+      updateReadouts();
+      drawStimulus();
+    }));
+    controls.maskMode.addEventListener('change', () => {
+      updateReadouts();
+      drawStimulus();
+    });
+
+    document.getElementById('newTrial').addEventListener('click', () => {
+      chooseNewDigit();
+      state.showAnswer = false;
+      updateReadouts();
+      drawStimulus();
+    });
+
+    document.getElementById('toggleAnswer').addEventListener('click', () => {
+      state.showAnswer = !state.showAnswer;
+      updateReadouts();
+      drawStimulus();
+    });
+
+    document.getElementById('exportCsv').addEventListener('click', exportCsv);
+    document.getElementById('resetLog').addEventListener('click', () => {
+      state.log = [];
+      state.trial = 1;
+      chooseNewDigit();
+      state.showAnswer = false;
+      updateReadouts();
+      renderLog();
+      drawStimulus();
+    });
+
+    updateReadouts();
+    renderLog();
+    drawStimulus();
+  </script>
+</body>
+</html>
