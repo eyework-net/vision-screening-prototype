@@ -85,7 +85,7 @@ https://eyework-net.github.io/vision-screening-prototype/
 
 ## 使用方法
 
-`index.html` をブラウザで開いて使用してください。  
+https://eyework-net.github.io/vision-screening-prototype/ をブラウザで開いて使用してください。  
 ローカル環境でも動作します。
 
 ---
